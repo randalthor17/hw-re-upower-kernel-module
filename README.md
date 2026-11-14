@@ -37,8 +37,8 @@ Run `sudo tools/live-test.sh` to repeat the checks.
 ## Build / use (Nix)
 
 ```sh
-nix build            # result/lib/modules/<ver>/extra/*.ko.xz (+ .cer signature digests, which NixOS needs)
-nix develop          # shell with KDIR set;  cd src && make
+nix build            # result/lib/modules/<ver>/updates/*.ko.xz (+ .cer signature digests, which NixOS needs)
+nix develop          # shell with KDIR set;  cd src && make -C $KDIR M=$PWD modules
 ```
 
 NixOS (flake input `hid-hwre`):

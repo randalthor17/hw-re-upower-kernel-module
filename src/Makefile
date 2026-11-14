@@ -1,13 +1,3 @@
-# Out-of-tree build; normally driven by Nix (see ../nix/package.nix)
+# Kbuild file for the Nix build (nix/package.nix) and for manual builds:
+#   make -C /lib/modules/$(uname -r)/build M=$PWD modules
 obj-m += hid-mk75.o hid-atk-vxe.o
-
-KDIR ?= /lib/modules/$(shell uname -r)/build
-
-all:
-	$(MAKE) -C $(KDIR) M=$(CURDIR) modules
-
-clean:
-	$(MAKE) -C $(KDIR) M=$(CURDIR) clean
-
-modules_install:
-	$(MAKE) -C $(KDIR) M=$(CURDIR) modules_install
