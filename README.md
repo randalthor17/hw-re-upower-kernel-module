@@ -51,3 +51,7 @@ NixOS (flake input `hid-hwre`):
 Builds against `config.boot.kernelPackages`, so it follows your kernel. Manual test: `sudo insmod` **each**
 `.ko` separately (a second path on one `insmod` line is parsed as a module parameter), then replug the device
 so it rebinds from `hid-generic`. Do not hand-unbind interfaces: an unbound mouse interface means no cursor.
+
+## License
+
+GPL-2.0-only (see `LICENSE`). Required for kernel modules that use GPL-only kernel interfaces.

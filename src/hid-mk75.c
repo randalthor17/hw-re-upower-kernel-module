@@ -468,8 +468,11 @@ static int mk75_kbd_set_fn(struct mk75 *k, u8 *cfg, unsigned long v)
 static int mk75_kbd_led_set(struct led_classdev *led, enum led_brightness v)
 {
 	struct mk75 *k = container_of(led, struct mk75, kbd_led);
+	int ret = mk75_cfg_update(k, mk75_kbd_set_fn, v);
 
-	return mk75_cfg_update(k, mk75_kbd_set_fn, v);
+	if (ret)
+		hid_warn(k->hdev, "mk75: backlight write failed (%d)\n", ret);
+	return ret;
 }
 
 /* cfg_lock held; @notify tells userspace the brightness changed in hardware */

@@ -33,6 +33,8 @@ echo "=== kbd_backlight write path ==="
 led=$(ls -d /sys/class/leds/mk75::kbd_backlight* 2>/dev/null | head -1)
 if [ -z "$led" ]; then bad "no mk75::kbd_backlight LED"; else
 	read -rp "Keyboard awake (tap keys)? Enter... " _
+	sleep 2
+	t0=$(date "+%Y-%m-%d %H:%M:%S")
 	o=$(cat $led/brightness)
 	t=$(( o == 1 ? 2 : 1 ))
 	echo $t >$led/brightness 2>/tmp/lt_err && sleep 3 || bad "write $t failed: $(cat /tmp/lt_err)"
@@ -40,6 +42,7 @@ if [ -z "$led" ]; then bad "no mk75::kbd_backlight LED"; else
 	echo 0 >$led/brightness && sleep 3 && ok "turned off (effect off)" || bad "off failed"
 	echo $o >$led/brightness && sleep 3
 	[ "$(cat $led/brightness)" = "$o" ] && ok "restored to $o" || bad "restore failed"
+	if journalctl -k --since "$t0" --no-pager | grep -q "backlight write failed"; then bad "driver logged a failed backlight write:"; journalctl -k --since "$t0" --no-pager | grep "backlight write failed" | sed "s/^/        /"; else ok "no write failures logged"; fi
 	echo "      waiting 35 s for the driver to re-read the device..."; sleep 35
 	[ "$(cat $led/brightness)" = "$o" ] && ok "device-side brightness = $o" || bad "device-side brightness is $(cat $led/brightness), expected $o"
 fi
