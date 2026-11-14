@@ -11,11 +11,8 @@ stdenv.mkDerivation {
 
   nativeBuildInputs = kernel.moduleBuildDependencies;
   makeFlags = (builtins.filter (f: !(lib.hasPrefix "O=" f)) kernel.makeFlags) ++ [ "KDIR=${kernel.dev}/lib/modules/${kernel.modDirVersion}/build" ];
-  installPhase = ''
-    runHook preInstall
-    install -D -t $out/lib/modules/${kernel.modDirVersion}/extra hid-mk75.ko hid-atk-vxe.ko
-    runHook postInstall
-  '';
+  installTargets = [ "modules_install" ];
+  installFlags = [ "INSTALL_MOD_PATH=$(out)" "INSTALL_MOD_DIR=extra" ];
 
   meta = {
     description = "HID drivers: Lingbao MK75 keyboard and ATK VXE R1 NK mouse (battery, LEDs, settings)";
