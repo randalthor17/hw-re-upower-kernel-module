@@ -64,7 +64,7 @@ or loads it.
 | sysfs `cpu_temp`, `gpu_temp`, `cpu_fan_rpm` | the readings it displays (`/sys/bus/hid/devices/0003:5131:2007.*/`). The LCD has two temperature digits, so temperatures are shown modulo 100: 105 °C reads `05`, which stands out as abnormal |
 | `tools/valuetop-feed.sh` | copies hwmon readings (k10temp/coretemp, amdgpu/nouveau/nvidia, first non-CPU/GPU fan) into those attributes |
 
-Which chip is "the CPU" or "the cooler" is policy, so it lives in the feeder, not the kernel. If no motherboard
+If nothing has been written to the attributes for 5 seconds (feeder stopped or crashed) the driver sends all zeros, so a dead feeder can never leave frozen readings that look live; the next write brings the real values back. Which chip is "the CPU" or "the cooler" is policy, so it lives in the feeder, not the kernel. If no motherboard
 fan is exposed by hwmon, RPM is left unset. Recent Gigabyte boards (ITE Super I/O) need the out-of-tree `it87`,
 so the module also loads nixpkgs' `it87` with `ignore_resource_conflict=1` (`hardware.valuetop-display.it87.enable`,
 default on; `it87.forceId = "0x8689"` if dmesg reports the chip as unsupported).

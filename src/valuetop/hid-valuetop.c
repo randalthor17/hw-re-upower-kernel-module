@@ -11,6 +11,11 @@
  * sends them to the display once a second.  Which hwmon chip is "the CPU" or
  * "the cooler" is policy and stays in userspace.
  *
+ * The display holds nothing by itself, and a frozen reading would look live.
+ * If no attribute has been written for VT_STALE_TIMEOUT (5 s) the driver sends
+ * all zeros, which cannot be mistaken for a real reading, and goes back to the
+ * stored values with the next write.
+ *
  *   /sys/bus/hid/devices/0003:5131:2007.XXXX/
  *     cpu_temp      degrees C, 0-255 (displayed modulo 100: the LCD has two digits)
  *     gpu_temp      degrees C, 0-255 (displayed modulo 100)
@@ -48,6 +53,7 @@
 
 #define VT_REPORT_LEN		64	/* including the report-ID slot */
 #define VT_REFRESH_INTERVAL	HZ
+#define VT_STALE_TIMEOUT	(5 * HZ)
 #define VT_MAX_RPM		9999
 
 struct vt {
@@ -56,6 +62,8 @@ struct vt {
 	u8 cpu_temp;
 	u8 gpu_temp;
 	u16 cpu_rpm;
+	unsigned long last_update;	/* jiffies of the last sysfs write */
+	bool stale;			/* refresh work only */
 	struct delayed_work refresh;
 };
 
@@ -102,21 +110,33 @@ static void vt_refresh_work(struct work_struct *work)
 {
 	struct vt *v = container_of(work, struct vt, refresh.work);
 	u8 *buf;
-	unsigned int rpm;
+	unsigned int rpm = 0;
+	bool stale;
 	int ret;
 
-	/* USB needs a heap buffer */
+	/* USB needs a heap buffer; zeroed, which is also the "no data" frame */
 	buf = kzalloc(VT_REPORT_LEN, GFP_KERNEL);
 	if (!buf)
 		goto again;
 
 	spin_lock_irq(&v->lock);
-	rpm = vt_patch_rpm(v->cpu_rpm);
-	/* two digits: 100 C shows as 00, 105 C as 05, so an overheating part
-	 * is plainly wrong next to a normal reading */
-	buf[2] = v->cpu_temp % 100;
-	buf[10] = v->gpu_temp % 100;
+	stale = time_after(jiffies, v->last_update + VT_STALE_TIMEOUT);
+	if (!stale) {
+		rpm = vt_patch_rpm(v->cpu_rpm);
+		/* two digits: 100 C shows as 00, 105 C as 05, so an overheating
+		 * part is plainly wrong next to a normal reading */
+		buf[2] = v->cpu_temp % 100;
+		buf[10] = v->gpu_temp % 100;
+	}
 	spin_unlock_irq(&v->lock);
+	if (stale != v->stale) {
+		v->stale = stale;
+		if (stale)
+			hid_info(v->hdev, "valuetop: no data for %d s, showing zeros\n",
+				 (int)(VT_STALE_TIMEOUT / HZ));
+		else
+			hid_info(v->hdev, "valuetop: data resumed\n");
+	}
 	buf[6] = rpm >> 8;
 	buf[7] = rpm & 0xff;
 
@@ -164,6 +184,7 @@ static ssize_t _name##_store(struct device *dev,			\
 		return -ERANGE;						\
 	spin_lock_irq(&v->lock);					\
 	v->_field = val;						\
+	v->last_update = jiffies;					\
 	spin_unlock_irq(&v->lock);					\
 	return count;							\
 }									\
@@ -202,6 +223,7 @@ static int vt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return -ENOMEM;
 	v->hdev = hdev;
 	spin_lock_init(&v->lock);
+	v->last_update = jiffies;
 	INIT_DELAYED_WORK(&v->refresh, vt_refresh_work);
 	hid_set_drvdata(hdev, v);
 
