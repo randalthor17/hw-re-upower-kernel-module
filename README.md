@@ -52,6 +52,32 @@ Builds against `config.boot.kernelPackages`, so it follows your kernel. Manual t
 `.ko` separately (a second path on one `insmod` line is parsed as a module parameter), then replug the device
 so it rebinds from `hid-generic`. Do not hand-unbind interfaces: an unbound mouse interface means no cursor.
 
+## ValueTop case display (separate, optional)
+
+`src/valuetop/hid-valuetop.c` drives the ValueTop Tempest DF6 segmented LCD (`5131:2007`). It is **not** part
+of the default package or `nixosModules.default`, so a host without the display (e.g. a laptop) never builds
+or loads it.
+
+| Piece | What it does |
+|---|---|
+| `hid-valuetop` | owns the device, sends the 64-byte report once a second, applies the RPM compensation for the display's firmware quirk |
+| sysfs `cpu_temp`, `gpu_temp`, `cpu_fan_rpm` | the readings it displays (`/sys/bus/hid/devices/0003:5131:2007.*/`) |
+| `tools/valuetop-feed.sh` | copies hwmon readings (k10temp/coretemp, amdgpu/nouveau/nvidia, first non-CPU/GPU fan) into those attributes |
+
+Which chip is "the CPU" or "the cooler" is policy, so it lives in the feeder, not the kernel. If no motherboard
+fan is exposed by hwmon, RPM is left unset. Recent Gigabyte boards (ITE Super I/O) need the out-of-tree `it87`,
+so the module also loads nixpkgs' `it87` with `ignore_resource_conflict=1` (`hardware.valuetop-display.it87.enable`,
+default on; `it87.forceId = "0x8689"` if dmesg reports the chip as unsupported).
+
+Only on a host that has the display:
+
+```nix
+{ imports = [ inputs.hid-hwre.nixosModules.valuetop-display ];
+  hardware.valuetop-display.enable = true; }   # module + autoload + valuetop-feed service
+```
+Manual build: `cd src/valuetop && make -C $KDIR M=$PWD modules`. As with the other drivers, replug the display
+(or reboot) so it rebinds from `hid-generic`.
+
 ## License
 
 GPL-2.0-only (see `LICENSE`). Required for kernel modules that use GPL-only kernel interfaces.

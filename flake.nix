@@ -13,9 +13,19 @@
         #   config.boot.kernelPackages.callPackage ./nix/package.nix { }
         default = pkgs.linuxPackages.callPackage ./nix/package.nix { };
         hid-hwre = default;
+
+        # The ValueTop case display is deliberately not part of `default`:
+        # only hosts that have it import nixosModules.valuetop-display.
+        hid-valuetop = pkgs.linuxPackages.callPackage ./nix/valuetop-package.nix { };
+        valuetop-feed = pkgs.writeShellApplication {
+          name = "valuetop-feed";
+          runtimeInputs = [ pkgs.coreutils pkgs.gnugrep ];
+          text = builtins.readFile ./tools/valuetop-feed.sh;
+        };
       });
 
       nixosModules.default = import ./nix/module.nix self;
+      nixosModules.valuetop-display = import ./nix/valuetop.nix self;
 
       devShells = forAll (pkgs: {
         default = pkgs.mkShell {
