@@ -12,8 +12,8 @@
  * "the cooler" is policy and stays in userspace.
  *
  *   /sys/bus/hid/devices/0003:5131:2007.XXXX/
- *     cpu_temp      degrees C, 0-255
- *     gpu_temp      degrees C, 0-255
+ *     cpu_temp      degrees C, 0-255 (displayed modulo 100: the LCD has two digits)
+ *     gpu_temp      degrees C, 0-255 (displayed modulo 100)
  *     cpu_fan_rpm   0-9999
  *
  * Output report layout (64 bytes, no report ID on the wire; byte 0 is the
@@ -112,8 +112,10 @@ static void vt_refresh_work(struct work_struct *work)
 
 	spin_lock_irq(&v->lock);
 	rpm = vt_patch_rpm(v->cpu_rpm);
-	buf[2] = v->cpu_temp;
-	buf[10] = v->gpu_temp;
+	/* two digits: 100 C shows as 00, 105 C as 05, so an overheating part
+	 * is plainly wrong next to a normal reading */
+	buf[2] = v->cpu_temp % 100;
+	buf[10] = v->gpu_temp % 100;
 	spin_unlock_irq(&v->lock);
 	buf[6] = rpm >> 8;
 	buf[7] = rpm & 0xff;

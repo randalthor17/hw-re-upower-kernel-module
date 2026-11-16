@@ -61,7 +61,7 @@ or loads it.
 | Piece | What it does |
 |---|---|
 | `hid-valuetop` | owns the device, sends the 64-byte report once a second, applies the RPM compensation for the display's firmware quirk |
-| sysfs `cpu_temp`, `gpu_temp`, `cpu_fan_rpm` | the readings it displays (`/sys/bus/hid/devices/0003:5131:2007.*/`) |
+| sysfs `cpu_temp`, `gpu_temp`, `cpu_fan_rpm` | the readings it displays (`/sys/bus/hid/devices/0003:5131:2007.*/`). The LCD has two temperature digits, so temperatures are shown modulo 100: 105 °C reads `05`, which stands out as abnormal |
 | `tools/valuetop-feed.sh` | copies hwmon readings (k10temp/coretemp, amdgpu/nouveau/nvidia, first non-CPU/GPU fan) into those attributes |
 
 Which chip is "the CPU" or "the cooler" is policy, so it lives in the feeder, not the kernel. If no motherboard
