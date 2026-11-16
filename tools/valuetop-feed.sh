@@ -8,7 +8,7 @@
 set -u
 shopt -s nullglob
 interval=${INTERVAL:-1}
-drv=/sys/bus/hid/drivers/valuetop-display
+drv=${VALUETOP_DRV_DIR:-/sys/bus/hid/drivers/valuetop-display}
 
 is_cpu() { [[ $1 == k10temp || $1 == coretemp ]]; }
 is_gpu() { [[ $1 == amdgpu || $1 == nouveau || $1 == nvidia ]]; }
@@ -29,16 +29,30 @@ first_value() {
 
 not_cpu_or_gpu() { ! is_cpu "$1" && ! is_gpu "$1"; }
 
+# The bound device directory, if any (no compgen: the plain bash used for
+# packaged scripts is built without readline and does not have it).
+find_dev() {
+	local d
+	for d in "$drv"/0003:5131:2007.*; do
+		echo "$d"
+		return 0
+	done
+	return 1
+}
+
+# Write one attribute; a failed write (device unplugged) must not end the
+# service, so it is ignored and retried on the next pass.
+put() { echo "$2" >"$dev/$1" 2>/dev/null || :; }
+
 while :; do
-	dev=$(compgen -G "$drv/0003:5131:2007.*" | head -n1)
-	if [[ -z $dev ]]; then
+	dev=$(find_dev) || {
 		sleep 5
 		continue
-	fi
+	}
 
-	t=$(first_value temp1_input is_cpu) && echo $((t / 1000)) >"$dev/cpu_temp"
-	t=$(first_value temp1_input is_gpu) && echo $((t / 1000)) >"$dev/gpu_temp"
-	r=$(first_value 'fan*_input' not_cpu_or_gpu) && echo "$r" >"$dev/cpu_fan_rpm"
+	t=$(first_value temp1_input is_cpu) && put cpu_temp $((t / 1000))
+	t=$(first_value temp1_input is_gpu) && put gpu_temp $((t / 1000))
+	r=$(first_value 'fan*_input' not_cpu_or_gpu) && put cpu_fan_rpm "$r"
 
 	sleep "$interval"
 done
